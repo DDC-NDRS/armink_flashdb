@@ -13,8 +13,12 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <flashdb.h>
-#include <fdb_low_lvl.h>
+#include "flashdb.h"
+#include "fdb_low_lvl.h"
+
+#include <zephyr/storage/flash_map.h>
+#include <zephyr/logging/log.h>
+LOG_MODULE_REGISTER(fdb_utils, CONFIG_LOG_DEFAULT_LEVEL);
 
 #define FDB_LOG_TAG "[utils]"
 
