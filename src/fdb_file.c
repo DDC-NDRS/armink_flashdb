@@ -14,12 +14,10 @@
 
 #ifdef FDB_USING_FILE_MODE
 
-#define DB_PATH_MAX            256
+#define DB_PATH_MAX             256
+#define DB_NAME_MAX             8
 
-static void get_db_file_path(fdb_db_t db, uint32_t addr, char *path, size_t size)
-{
-#define DB_NAME_MAX            8
-
+static void get_db_file_path(fdb_db_t db, uint32_t addr, char* path, size_t size) {
     /* from db_name.fdb.0 to db_name.fdb.n */
     char file_name[DB_NAME_MAX + 4 + 10];
     uint32_t sec_addr = FDB_ALIGN_DOWN(addr, db->sec_size);
@@ -42,34 +40,35 @@ static void get_db_file_path(fdb_db_t db, uint32_t addr, char *path, size_t size
 #include <unistd.h>
 #endif
 
-static int get_file_from_cache(fdb_db_t db, uint32_t sec_addr)
-{
+static int get_file_from_cache(fdb_db_t db, uint32_t sec_addr) {
     for (int i = 0; i < FDB_FILE_CACHE_TABLE_SIZE; i++) {
-        if (db->cur_file_sec[i] == sec_addr)
+        if (db->cur_file_sec[i] == sec_addr) {
             return db->cur_file[i];
+        }
     }
 
     return -1;
 }
 
-static void update_file_cache(fdb_db_t db, uint32_t sec_addr, int fd)
-{
+static void update_file_cache(fdb_db_t db, uint32_t sec_addr, int fd) {
     int free_index = FDB_FILE_CACHE_TABLE_SIZE;
 
     for (int i = 0; i < FDB_FILE_CACHE_TABLE_SIZE; i++) {
         if (db->cur_file_sec[i] == sec_addr) {
             db->cur_file[i] = fd;
             return;
-        } else if (db->cur_file[i] == -1) {
+        }
+        else if (db->cur_file[i] == -1) {
             free_index = i;
         }
     }
 
     if (fd > 0) {
         if (free_index < FDB_FILE_CACHE_TABLE_SIZE) {
-                db->cur_file[free_index] = fd;
-                db->cur_file_sec[free_index] = sec_addr;
-        } else {
+            db->cur_file[free_index]     = fd;
+            db->cur_file_sec[free_index] = sec_addr;
+        }
+        else {
             /* cache is full, move to end */
             for (int i = FDB_FILE_CACHE_TABLE_SIZE - 1; i > 0; i--) {
                 close(db->cur_file[i]);
@@ -77,14 +76,13 @@ static void update_file_cache(fdb_db_t db, uint32_t sec_addr, int fd)
                 memcpy(&db->cur_file_sec[i], &db->cur_file_sec[i - 1], sizeof(db->cur_file_sec[0]));
             }
             /* add to head */
-            db->cur_file[0] = fd;
+            db->cur_file[0]     = fd;
             db->cur_file_sec[0] = sec_addr;
         }
     }
 }
 
-static int open_db_file(fdb_db_t db, uint32_t addr, bool clean)
-{
+static int open_db_file(fdb_db_t db, uint32_t addr, bool clean) {
     uint32_t sec_addr = FDB_ALIGN_DOWN(addr, db->sec_size);
     int fd = get_file_from_cache(db, sec_addr);
     char path[DB_PATH_MAX];
@@ -119,77 +117,81 @@ static int open_db_file(fdb_db_t db, uint32_t addr, bool clean)
     return fd;
 }
 
-fdb_err_t _fdb_file_read(fdb_db_t db, uint32_t addr, void *buf, size_t size)
-{
+fdb_err_t _fdb_file_read(fdb_db_t db, uint32_t addr, void* buf, size_t size) {
     fdb_err_t result = FDB_NO_ERR;
     int fd = open_db_file(db, addr, false);
+
     if (fd > 0) {
         /* get the offset address is relative to the start of the current file */
         addr = addr % db->sec_size;
 
-        if ((lseek(fd, addr, SEEK_SET) != (int32_t)addr) || (read(fd, buf, size) != (ssize_t)size))
+        if ((lseek(fd, addr, SEEK_SET) != (int32_t)addr) || (read(fd, buf, size) != (ssize_t)size)) {
             result = FDB_READ_ERR;
-    } else {
+        }
+    }
+    else {
         result = FDB_READ_ERR;
     }
     return result;
 }
 
-fdb_err_t _fdb_file_write(fdb_db_t db, uint32_t addr, const void *buf, size_t size, bool sync)
-{
+fdb_err_t _fdb_file_write(fdb_db_t db, uint32_t addr, void const* buf, size_t size, bool sync) {
     fdb_err_t result = FDB_NO_ERR;
     int fd = open_db_file(db, addr, false);
+
     if (fd > 0) {
         /* get the offset address is relative to the start of the current file */
         addr = addr % db->sec_size;
 
-        if ((lseek(fd, addr, SEEK_SET) != (int32_t)addr) || (write(fd, buf, size) != (ssize_t)size))
+        if ((lseek(fd, addr, SEEK_SET) != (int32_t)addr) || (write(fd, buf, size) != (ssize_t)size)) {
             result = FDB_WRITE_ERR;
-        if(sync) {
+        }
+
+        if (sync) {
             fsync(fd);
         }
-    } else {
+    }
+    else {
         result = FDB_WRITE_ERR;
     }
     return result;
 }
 
-fdb_err_t _fdb_file_erase(fdb_db_t db, uint32_t addr, size_t size)
-{
+fdb_err_t _fdb_file_erase(fdb_db_t db, uint32_t addr, size_t size) {
     fdb_err_t result = FDB_NO_ERR;
     int fd = open_db_file(db, addr, true);
+
     if (fd > 0) {
 #define BUF_SIZE 32
         uint8_t buf[BUF_SIZE];
-        size_t i;
+        size_t  i;
         lseek(fd, 0, SEEK_SET);
-        for (i = 0; i * BUF_SIZE < size; i++)
-        {
+        for (i = 0; i * BUF_SIZE < size; i++) {
             memset(buf, 0xFF, BUF_SIZE);
             write(fd, buf, BUF_SIZE);
         }
         memset(buf, 0xFF, BUF_SIZE);
         write(fd, buf, size - i * BUF_SIZE);
         fsync(fd);
-    } else {
+    }
+    else {
         result = FDB_ERASE_ERR;
     }
     return result;
 }
 #elif defined(FDB_USING_FILE_LIBC_MODE)
 
-static FILE *get_file_from_cache(fdb_db_t db, uint32_t sec_addr)
-{
+static FILE* get_file_from_cache(fdb_db_t db, uint32_t sec_addr) {
     for (int i = 0; i < FDB_FILE_CACHE_TABLE_SIZE; i++) {
-        if (db->cur_file_sec[i] == sec_addr)
+        if (db->cur_file_sec[i] == sec_addr) {
             return db->cur_file[i];
+        }
     }
 
     return NULL;
 }
 
-static void update_file_cache(fdb_db_t db, uint32_t sec_addr, FILE *fd)
-{
+static void update_file_cache(fdb_db_t db, uint32_t sec_addr, FILE* fd) {
     int free_index = FDB_FILE_CACHE_TABLE_SIZE;
 
     for (int i = 0; i < FDB_FILE_CACHE_TABLE_SIZE; i++) {
@@ -204,7 +206,7 @@ static void update_file_cache(fdb_db_t db, uint32_t sec_addr, FILE *fd)
 
     if (fd) {
         if (free_index < FDB_FILE_CACHE_TABLE_SIZE) {
-            db->cur_file[free_index] = fd;
+            db->cur_file[free_index]     = fd;
             db->cur_file_sec[free_index] = sec_addr;
         }
         else {
@@ -215,16 +217,15 @@ static void update_file_cache(fdb_db_t db, uint32_t sec_addr, FILE *fd)
                 memcpy(&db->cur_file_sec[i], &db->cur_file_sec[i - 1], sizeof(db->cur_file_sec[0]));
             }
             /* add to head */
-            db->cur_file[0] = fd;
+            db->cur_file[0]     = fd;
             db->cur_file_sec[0] = sec_addr;
         }
     }
 }
 
-static FILE *open_db_file(fdb_db_t db, uint32_t addr, bool clean)
-{
+static FILE* open_db_file(fdb_db_t db, uint32_t addr, bool clean) {
     uint32_t sec_addr = FDB_ALIGN_DOWN(addr, db->sec_size);
-    FILE *fd = get_file_from_cache(db, sec_addr);
+    FILE* fd = get_file_from_cache(db, sec_addr);
     char path[DB_PATH_MAX];
 
     if (fd == NULL || clean) {
@@ -238,10 +239,11 @@ static FILE *open_db_file(fdb_db_t db, uint32_t addr, bool clean)
 
         if (clean) {
             /* clean the old file */
-            FILE *clean_fd = fopen(path, "wb+");
+            FILE* clean_fd = fopen(path, "wb+");
             if (clean_fd == NULL) {
                 FDB_INFO("Error: open (%s) file failed.\n", path);
-            } else {
+            }
+            else {
                 fclose(clean_fd);
                 clean_fd = NULL;
             }
@@ -257,56 +259,60 @@ static FILE *open_db_file(fdb_db_t db, uint32_t addr, bool clean)
     return fd;
 }
 
-fdb_err_t _fdb_file_read(fdb_db_t db, uint32_t addr, void *buf, size_t size)
-{
+fdb_err_t _fdb_file_read(fdb_db_t db, uint32_t addr, void* buf, size_t size) {
     fdb_err_t result = FDB_NO_ERR;
-    FILE *fp = open_db_file(db, addr, false);
+    FILE* fp = open_db_file(db, addr, false);
+
     if (fp) {
         addr = addr % db->sec_size;
-        if ((fseek(fp, addr, SEEK_SET) != 0) || (fread(buf, size, 1, fp) != 1))
+        if ((fseek(fp, addr, SEEK_SET) != 0) || (fread(buf, size, 1, fp) != 1)) {
             result = FDB_READ_ERR;
-    } else {
+        }
+    }
+    else {
         result = FDB_READ_ERR;
     }
     return result;
 }
 
-fdb_err_t _fdb_file_write(fdb_db_t db, uint32_t addr, const void *buf, size_t size, bool sync)
-{
+fdb_err_t _fdb_file_write(fdb_db_t db, uint32_t addr, void const* buf, size_t size, bool sync) {
     fdb_err_t result = FDB_NO_ERR;
-    FILE *fp = open_db_file(db, addr, false);
+    FILE* fp = open_db_file(db, addr, false);
+
     if (fp) {
         addr = addr % db->sec_size;
-        if ((fseek(fp, addr, SEEK_SET) != 0) || (fwrite(buf, size, 1, fp) != 1))
+        if ((fseek(fp, addr, SEEK_SET) != 0) || (fwrite(buf, size, 1, fp) != 1)) {
             result = FDB_READ_ERR;
-        if(sync) {
+        }
+
+        if (sync) {
             fflush(fp);
         }
-    } else {
+    }
+    else {
         result = FDB_READ_ERR;
     }
     return result;
 }
 
-fdb_err_t _fdb_file_erase(fdb_db_t db, uint32_t addr, size_t size)
-{
+fdb_err_t _fdb_file_erase(fdb_db_t db, uint32_t addr, size_t size) {
     fdb_err_t result = FDB_NO_ERR;
+    FILE* fp = open_db_file(db, addr, true);
 
-    FILE *fp = open_db_file(db, addr, true);
     if (fp != NULL) {
 #define BUF_SIZE 32
         uint8_t buf[BUF_SIZE];
         size_t i;
         fseek(fp, 0, SEEK_SET);
-        for (i = 0; i * BUF_SIZE < size; i++)
-        {
+        for (i = 0; i * BUF_SIZE < size; i++) {
             memset(buf, 0xFF, BUF_SIZE);
             fwrite(buf, BUF_SIZE, 1, fp);
         }
         memset(buf, 0xFF, BUF_SIZE);
         fwrite(buf, size - i * BUF_SIZE, 1, fp);
         fflush(fp);
-    } else {
+    }
+    else {
         result = FDB_ERASE_ERR;
     }
     return result;
@@ -314,4 +320,3 @@ fdb_err_t _fdb_file_erase(fdb_db_t db, uint32_t addr, size_t size)
 #endif /* defined(FDB_USING_FILE_LIBC_MODE) */
 
 #endif /* FDB_USING_FILE_MODE */
-
