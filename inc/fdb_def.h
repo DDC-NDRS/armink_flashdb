@@ -265,12 +265,17 @@ struct fdb_db {
     const char *name;                            /**< database name */
     fdb_db_type type;                            /**< database type */
     union {
-#ifdef FDB_USING_FAL_MODE
+        #if defined(FDB_USING_FAL_MODE)
         const struct fal_partition *part;        /**< flash partition for saving database */
-#endif
-#ifdef FDB_USING_FILE_MODE
+        #endif
+
+        #if defined(FDB_USING_FAL_MODE_ZEPHYR)
+        const struct flash_area* fa;
+        #endif
+
+        #if defined(FDB_USING_FILE_MODE)
         const char *dir;                         /**< directory path for saving database */
-#endif
+        #endif
     } storage;
     uint32_t sec_size;                           /**< flash section size. It's a multiple of block size */
     uint32_t max_size;                           /**< database max size. It's a multiple of section size */
