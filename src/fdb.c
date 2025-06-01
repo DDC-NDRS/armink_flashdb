@@ -11,10 +11,17 @@
  * Some initialize interface for this library.
  */
 
-#include <flashdb.h>
-#include <fdb_low_lvl.h>
+#include "flashdb.h"
+#include "fdb_low_lvl.h"
 #include <string.h>
 #include <inttypes.h>
+
+#include <zephyr/sys/util_macro.h>
+#include <zephyr/drivers/flash.h>
+#include <zephyr/storage/flash_map.h>
+
+#include <zephyr/logging/log.h>
+LOG_MODULE_REGISTER(fdb, CONFIG_LOG_DEFAULT_LEVEL);
 
 #ifdef FDB_USING_FILE_POSIX_MODE
 #if !defined(_MSC_VER)
@@ -24,7 +31,7 @@
 
 #define FDB_LOG_TAG ""
 
-#if !defined(FDB_USING_FAL_MODE) && !defined(FDB_USING_FILE_MODE)
+#if !defined(FDB_USING_FAL_MODE) && !defined(FDB_USING_FAL_MODE_ZEPHYR) && !defined(FDB_USING_FILE_MODE)
 #error "Please defined the FDB_USING_FAL_MODE or FDB_USING_FILE_MODE macro"
 #endif
 
@@ -56,12 +63,13 @@ fdb_err_t _fdb_init_ex(fdb_db_t db, char const* name, char const* path, fdb_db_t
         FDB_ASSERT(strlen(path) != 0)
         #endif
     }
-    else {
-        #ifdef FDB_USING_FAL_MODE
+    else if (IS_ENABLED(FDB_USING_FAL_MODE)) {
+        #if defined(FDB_USING_FAL_MODE)
         size_t block_size;
 
         /* FAL (Flash Abstraction Layer) initialization */
         fal_init();
+
         /* check the flash partition */
         if ((db->storage.part = fal_partition_find(path)) == NULL) {
             FDB_INFO("Error: Partition (%s) not found.\n", path);
@@ -84,6 +92,22 @@ fdb_err_t _fdb_init_ex(fdb_db_t db, char const* name, char const* path, fdb_db_t
         db->max_size = db->storage.part->len;
         #endif /* FDB_USING_FAL_MODE */
     }
+    else if (IS_ENABLED(FDB_USING_FAL_MODE_ZEPHYR)) {
+        const struct flash_area* fa = db->storage.fa;
+        struct flash_pages_info info;
+        int rc;
+
+        rc = flash_get_page_info_by_offs(fa->fa_dev, fa->fa_off, &info);
+        if (rc == 0) {
+            db->sec_size = info.size;
+        }
+        else {
+            FDB_INFO("Error: get flash page info failed (%d).\n", rc);
+            return FDB_INIT_FAILED;
+        }
+
+        db->max_size = fa->fa_size;
+    }
 
     /* the block size MUST to be the Nth power of 2 */
     FDB_ASSERT((db->sec_size & (db->sec_size - 1)) == 0);
@@ -93,6 +117,7 @@ fdb_err_t _fdb_init_ex(fdb_db_t db, char const* name, char const* path, fdb_db_t
                  db->sec_size);
         return FDB_INIT_FAILED;
     }
+
     /* must has more than or equal 2 sectors */
     if (db->max_size / db->sec_size < 2) {
         FDB_INFO("Error: db MUST has more than or equal 2 sectors, current has %" PRIu32 " sector(s)\n",
