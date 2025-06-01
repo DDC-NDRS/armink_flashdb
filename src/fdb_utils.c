@@ -313,6 +313,18 @@ fdb_err_t _fdb_flash_write(fdb_db_t db, uint32_t addr, const void *buf, size_t s
             result = FDB_WRITE_ERR;
         }
 #endif
+
+        #if defined(FDB_USING_FAL_MODE_ZEPHYR)
+        int ret;
+
+        ret = flash_area_write(db->storage.fa, addr, buf, size);
+        if (ret == 0) {
+            result = FDB_NO_ERR;
+        }
+        else {
+            result = FDB_WRITE_ERR;
+        }
+        #endif
     }
 
     return result;
