@@ -99,7 +99,9 @@ fdb_err_t _fdb_init_ex(fdb_db_t db, char const* name, char const* path, fdb_db_t
 
         rc = flash_get_page_info_by_offs(fa->fa_dev, fa->fa_off, &info);
         if (rc == 0) {
-            db->sec_size = info.size;
+            if (db->sec_size == 0) {
+                db->sec_size = info.size;
+            }
         }
         else {
             FDB_INFO("Error: get flash page info failed (%d).\n", rc);

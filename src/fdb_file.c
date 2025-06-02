@@ -78,6 +78,7 @@ static void update_file_cache(fdb_db_t db, uint32_t sec_addr, int fd) {
                 memcpy(&db->cur_file[i], &db->cur_file[i - 1], sizeof(db->cur_file[0]));
                 memcpy(&db->cur_file_sec[i], &db->cur_file_sec[i - 1], sizeof(db->cur_file_sec[0]));
             }
+
             /* add to head */
             db->cur_file[0]     = fd;
             db->cur_file_sec[0] = sec_addr;
@@ -90,7 +91,7 @@ static int open_db_file(fdb_db_t db, uint32_t addr, bool clean) {
     int fd = get_file_from_cache(db, sec_addr);
     char path[DB_PATH_MAX];
 
-    if (fd <= 0 || clean) {
+    if ((fd <= 0) || clean) {
         get_db_file_path(db, addr, path, DB_PATH_MAX);
 
         if (fd > 0) {
@@ -98,9 +99,11 @@ static int open_db_file(fdb_db_t db, uint32_t addr, bool clean) {
             fd = -1;
             update_file_cache(db, sec_addr, fd);
         }
+
         if (clean) {
             /* clean the old file */
             int clean_fd = open(path, O_RDWR | O_CREAT | O_TRUNC, 0777);
+
             if (clean_fd <= 0) {
                 FDB_INFO("Error: open (%s) file failed.\n", path);
             }
@@ -109,6 +112,7 @@ static int open_db_file(fdb_db_t db, uint32_t addr, bool clean) {
                 clean_fd = -1;
             }
         }
+
         if (get_file_from_cache(db, sec_addr) < 0) {
             /* open the database file */
             fd = open(path, O_RDWR, 0777);
