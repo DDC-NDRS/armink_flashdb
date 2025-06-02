@@ -18,11 +18,7 @@
 #include <stdio.h>
 #include <time.h>
 #include "fdb_cfg.h"
-
-#ifdef FDB_USING_FAL_MODE
-#include <fal.h>
-#endif
-
+#include "port/fal/inc/fal.h"
 #include "fdb_def.h"
 
 #ifdef __cplusplus
@@ -42,7 +38,7 @@ fdb_err_t fdb_tsdb_deinit(fdb_tsdb_t db);
 
 /* blob API */
 fdb_blob_t fdb_blob_make(fdb_blob_t blob, void const* value_buf, size_t buf_len);
-size_t fdb_blob_read(fdb_db_t db, fdb_blob_t blob);
+size_t fdb_blob_read(fdb_db_t db, fdb_blob_t const blob);
 
 /* Key-Value API like a KV DB */
 fdb_err_t fdb_kv_set(fdb_kvdb_t db, char const* key, char const* value);

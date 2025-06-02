@@ -20,6 +20,10 @@
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(fdb_utils, CONFIG_LOG_DEFAULT_LEVEL);
 
+extern fdb_err_t _fdb_file_read(fdb_db_t db, uint32_t addr, void* buf, size_t size);
+extern fdb_err_t _fdb_file_write(fdb_db_t db, uint32_t addr, void const* buf, size_t size, bool sync);
+extern fdb_err_t _fdb_file_erase(fdb_db_t db, uint32_t addr, size_t size);
+
 #define FDB_LOG_TAG "[utils]"
 
 static uint32_t const crc32_table[] = {
@@ -139,7 +143,7 @@ size_t _fdb_get_status(uint8_t const status_table[], size_t status_num) {
             break;
         }
         else { /* (FDB_WRITE_GRAN == 8) || (FDB_WRITE_GRAN == 32) || (FDB_WRITE_GRAN == 64) */
-            if (status_table[status_num * FDB_WRITE_GRAN / 8] == FDB_BYTE_WRITTEN) {
+            if (status_table[(status_num * FDB_WRITE_GRAN) / 8] == FDB_BYTE_WRITTEN) {
                 break;
             }
         }
@@ -152,68 +156,78 @@ size_t _fdb_get_status(uint8_t const status_table[], size_t status_num) {
 
 fdb_err_t _fdb_write_status(fdb_db_t db, uint32_t addr, uint8_t status_table[],
                             size_t status_num, size_t status_index, bool sync) {
-    fdb_err_t result = FDB_NO_ERR;
+    fdb_err_t result;
     size_t byte_index;
 
     FDB_ASSERT(status_index < status_num);
     FDB_ASSERT(status_table);
 
-    /* set the status first */
+    /* Set the status first */
     byte_index = _fdb_set_status(status_table, status_num, status_index);
 
-    /* the first status table value is all 1, so no need to write flash */
+    /* The first status table value is all 1, so no need to write flash */
     if (byte_index == SIZE_MAX) {
         return FDB_NO_ERR;
     }
 
-    #if (FDB_WRITE_GRAN == 1)
-    result = _fdb_flash_write(db, addr + byte_index, (uint32_t*)&status_table[byte_index], 1, sync);
-    #else /*  (FDB_WRITE_GRAN == 8) ||  (FDB_WRITE_GRAN == 32) ||  (FDB_WRITE_GRAN == 64) */
-    /* write the status by write granularity
-     * some flash (like stm32 onchip) NOT supported repeated write before erase */
-    result = _fdb_flash_write(db, addr + byte_index, (uint32_t*)&status_table[byte_index], FDB_WRITE_GRAN / 8, sync);
-    #endif /* FDB_WRITE_GRAN == 1 */
+    if (FDB_WRITE_GRAN == 1) {
+        result = _fdb_flash_write(db, addr + byte_index, &status_table[byte_index], 1, sync);
+    } 
+    else { /* (FDB_WRITE_GRAN == 8) || (FDB_WRITE_GRAN == 32) || (FDB_WRITE_GRAN == 64) */
+        /* write the status by write granularity
+         * some flash (like stm32 onchip) NOT supported repeated write before erase */
+        result = _fdb_flash_write(db, addr + byte_index, &status_table[byte_index], (FDB_WRITE_GRAN / 8), sync);
+    }
 
-    return result;
+    return (result);
 }
 
 size_t _fdb_read_status(fdb_db_t db, uint32_t addr, uint8_t status_table[], size_t total_num) {
     size_t status;
+    fdb_err_t result;
 
     FDB_ASSERT(status_table);
 
-    _fdb_flash_read(db, addr, (uint32_t*)status_table, FDB_STATUS_TABLE_SIZE(total_num));
-
-    status = _fdb_get_status(status_table, total_num);
+    result = _fdb_flash_read(db, addr, status_table, FDB_STATUS_TABLE_SIZE(total_num));
+    if (result == FDB_NO_ERR) {
+        status = _fdb_get_status(status_table, total_num);
+    }
+    else {
+        LOG_ERR("Read status table error, addr: 0x%08X", addr);
+        status = 0;
+    }
 
     return status;
 }
 
 /*
- * find the continue 0xFF flash address to end address
+ * Find the continue 0xFF flash address to end address
  */
 uint32_t _fdb_continue_ff_addr(fdb_db_t db, uint32_t start, uint32_t end) {
     uint8_t buf[32];
     uint8_t last_data = FDB_BYTE_WRITTEN;
     size_t addr = start;
     size_t read_size;
+    fdb_err_t result;
 
     for (; start < end; start += sizeof(buf)) {
         if (start + sizeof(buf) < end) {
             read_size = sizeof(buf);
         }
         else {
-            read_size = end - start;
+            read_size = (end - start);
         }
 
-        _fdb_flash_read(db, start, (uint32_t*)buf, read_size);
-        for (size_t i = 0; i < read_size; i++) {
-            if ((last_data != FDB_BYTE_ERASED) &&
-                (buf[i] == FDB_BYTE_ERASED)) {
-                addr = start + i;
-            }
+        result = _fdb_flash_read(db, start, buf, read_size);
+        if (result == FDB_NO_ERR) {
+            for (size_t i = 0; i < read_size; i++) {
+                if ((last_data != FDB_BYTE_ERASED) &&
+                    (buf[i] == FDB_BYTE_ERASED)) {
+                    addr = start + i;
+                }
 
-            last_data = buf[i];
+                last_data = buf[i];
+            }
         }
     }
 
@@ -249,95 +263,101 @@ fdb_blob_t fdb_blob_make(fdb_blob_t blob, void const* value_buf, size_t buf_len)
  *
  * @return read length
  */
-size_t fdb_blob_read(fdb_db_t db, fdb_blob_t blob) {
+size_t fdb_blob_read(fdb_db_t db, fdb_blob_t const blob) {
     size_t read_len = blob->size;
+    fdb_err_t result;
 
     if (read_len > blob->saved.len) {
         read_len = blob->saved.len;
     }
-    if (_fdb_flash_read(db, blob->saved.addr, blob->buf, read_len) != FDB_NO_ERR) {
+
+    result = _fdb_flash_read(db, blob->saved.addr, blob->buf, read_len);
+    if (result != FDB_NO_ERR) {
         read_len = 0;
     }
 
     return read_len;
 }
 
-#ifdef FDB_USING_FILE_MODE
-extern fdb_err_t _fdb_file_read(fdb_db_t db, uint32_t addr, void* buf, size_t size);
-extern fdb_err_t _fdb_file_write(fdb_db_t db, uint32_t addr, void const* buf, size_t size, bool sync);
-extern fdb_err_t _fdb_file_erase(fdb_db_t db, uint32_t addr, size_t size);
-#endif /* FDB_USING_FILE_LIBC */
-
 fdb_err_t _fdb_flash_read(fdb_db_t db, uint32_t addr, void* buf, size_t size) {
     fdb_err_t result = FDB_NO_ERR;
+    int ret;
 
     if (db->file_mode) {
-        #ifdef FDB_USING_FILE_MODE
-        return _fdb_file_read(db, addr, buf, size);
-        #else
-        return FDB_READ_ERR;
-        #endif
-    }
-    else {
-        #ifdef FDB_USING_FAL_MODE
-        if (fal_partition_read(db->storage.part, addr, (uint8_t*)buf, size) < 0) {
+        if (IS_ENABLED(FDB_USING_FILE_MODE)) {
+            result = _fdb_file_read(db, addr, buf, size);
+        } 
+        else {
             result = FDB_READ_ERR;
         }
-        #endif
+    }
+    else if (IS_ENABLED(FDB_USING_FAL_MODE)) {
+        ret = fal_partition_read(db->storage.part, addr, (uint8_t*)buf, size);
+        if (ret < 0) {
+            result = FDB_READ_ERR;
+        }
+    }
+    else { // FDB_USING_ZEPHYR_FLASH_MAP
+        ret = flash_area_read(db->storage.fa, addr, buf, size);
+        if (ret != 0) {
+            result = FDB_READ_ERR;
+        }
     }
 
-    return result;
+    return (result);
 }
 
 fdb_err_t _fdb_flash_erase(fdb_db_t db, uint32_t addr, size_t size) {
     fdb_err_t result = FDB_NO_ERR;
+    int ret;
 
     if (db->file_mode) {
-        #ifdef FDB_USING_FILE_MODE
-        return _fdb_file_erase(db, addr, size);
-        #else
-        return FDB_ERASE_ERR;
-        #endif /* FDB_USING_FILE_MODE */
-    }
-    else {
-        #ifdef FDB_USING_FAL_MODE
-        if (fal_partition_erase(db->storage.part, addr, size) < 0) {
+        if (IS_ENABLED(FDB_USING_FILE_MODE)) {
+            result = _fdb_file_erase(db, addr, size);
+        }
+        else {
             result = FDB_ERASE_ERR;
         }
-        #endif
+    }
+    else if (IS_ENABLED(FDB_USING_FAL_MODE)) {
+        ret = fal_partition_erase(db->storage.part, addr, size);
+        if (ret < 0) {
+            result = FDB_ERASE_ERR;
+        }
+    }
+    else { // FDB_USING_ZEPHYR_FLASH_MAP
+        ret = flash_area_erase(db->storage.fa, addr, size);
+        if (ret != 0) {
+            result = FDB_ERASE_ERR;
+        }
     }
 
-    return result;
+    return (result);
 }
 
 fdb_err_t _fdb_flash_write(fdb_db_t db, uint32_t addr, void const* buf, size_t size, bool sync) {
     fdb_err_t result = FDB_NO_ERR;
+    int ret;
 
     if (db->file_mode) {
-        #ifdef FDB_USING_FILE_MODE
-        return _fdb_file_write(db, addr, buf, size, sync);
-        #else
-        return FDB_WRITE_ERR;
-        #endif /* FDB_USING_FILE_MODE */
-    }
-    else {
-        #ifdef FDB_USING_FAL_MODE
-        if (fal_partition_write(db->storage.part, addr, (uint8_t*)buf, size) < 0) {
-            result = FDB_WRITE_ERR;
-        }
-        #endif
-
-        #if defined(FDB_USING_FAL_MODE_ZEPHYR)
-        int ret;
-
-        ret = flash_area_write(db->storage.fa, addr, buf, size);
-        if (ret == 0) {
-            result = FDB_NO_ERR;
+        if (IS_ENABLED(FDB_USING_FILE_MODE)) {
+            result = _fdb_file_write(db, addr, buf, size, sync);
         }
         else {
             result = FDB_WRITE_ERR;
         }
-        #endif
+    }
+    else if (IS_ENABLED(FDB_USING_FAL_MODE)) {
+        ret = fal_partition_write(db->storage.part, addr, (uint8_t*)buf, size);
+        if (ret < 0) {
+            result = FDB_WRITE_ERR;
+        }
+    }
+    else { // FDB_USING_ZEPHYR_FLASH_MAP
+        ret = flash_area_write(db->storage.fa, addr, buf, size);
+        if (ret != 0) {
+            result = FDB_WRITE_ERR;
+        }
     }
 
     return (result);

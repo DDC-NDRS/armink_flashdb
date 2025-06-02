@@ -31,7 +31,7 @@ LOG_MODULE_REGISTER(fdb, CONFIG_LOG_DEFAULT_LEVEL);
 
 #define FDB_LOG_TAG ""
 
-#if !defined(FDB_USING_FAL_MODE) && !defined(FDB_USING_FAL_MODE_ZEPHYR) && !defined(FDB_USING_FILE_MODE)
+#if !defined(FDB_USING_FAL_MODE) && !defined(FDB_USING_ZEPHYR_FLASH_MAP) && !defined(FDB_USING_FILE_MODE)
 #error "Please defined the FDB_USING_FAL_MODE or FDB_USING_FILE_MODE macro"
 #endif
 
@@ -92,7 +92,7 @@ fdb_err_t _fdb_init_ex(fdb_db_t db, char const* name, char const* path, fdb_db_t
         db->max_size = db->storage.part->len;
         #endif /* FDB_USING_FAL_MODE */
     }
-    else if (IS_ENABLED(FDB_USING_FAL_MODE_ZEPHYR)) {
+    else if (IS_ENABLED(FDB_USING_ZEPHYR_FLASH_MAP)) {
         const struct flash_area* fa = db->storage.fa;
         struct flash_pages_info info;
         int rc;
