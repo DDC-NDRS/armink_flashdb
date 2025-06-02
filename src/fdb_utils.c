@@ -92,8 +92,9 @@ uint32_t fdb_calc_crc32(uint32_t crc, void const* buf, size_t size) {
 
 size_t _fdb_set_status(uint8_t status_table[], size_t status_num, size_t status_index) {
     size_t byte_index = SIZE_MAX;
+
     /*
-     * | write garn |       status0       |       status1       |      status2         |       status3      |
+     * | write gran |       status0       |       status1       |      status2         |       status3      |
      * ------------------------------------------------------------------------------------------------------
      * |    1bit    | 0xFF                | 0x7F                |  0x3F                |  0x1F
      * ------------------------------------------------------------------------------------------------------
@@ -108,42 +109,45 @@ size_t _fdb_set_status(uint8_t status_table[], size_t status_num, size_t status_
      */
     memset(status_table, FDB_BYTE_ERASED, FDB_STATUS_TABLE_SIZE(status_num));
     if (status_index > 0) {
-        #if (FDB_WRITE_GRAN == 1)
-        byte_index = (status_index - 1) / 8;
-        #if (FDB_BYTE_ERASED == 0xFF)
-        status_table[byte_index] &= (0x00ff >> (status_index % 8));
-        #else
-        status_table[byte_index] |= (0x00ff >> (status_index % 8));
-        #endif
-        #else
-        byte_index = (status_index - 1) * (FDB_WRITE_GRAN / 8);
-        status_table[byte_index] = FDB_BYTE_WRITTEN;
-        #endif /* FDB_WRITE_GRAN == 1 */
+        if (FDB_WRITE_GRAN == 1) {
+            byte_index = (status_index - 1) / 8;
+
+            if (FDB_BYTE_ERASED == 0xFF) {
+                status_table[byte_index] &= (0x00FF >> (status_index % 8));
+            }
+            else {
+                status_table[byte_index] |= (0x00FF >> (status_index % 8));
+            }
+        }
+        else {
+            byte_index = (status_index - 1) * (FDB_WRITE_GRAN / 8);
+            status_table[byte_index] = FDB_BYTE_WRITTEN;
+        }
     }
 
     return byte_index;
 }
 
-size_t _fdb_get_status(uint8_t status_table[], size_t status_num) {
+size_t _fdb_get_status(uint8_t const status_table[], size_t status_num) {
     size_t i = 0;
     size_t status_num_bak = --status_num;
 
     while (status_num--) {
         /* get the first 0 position from end address to start address */
-        #if (FDB_WRITE_GRAN == 1)
-        if ((status_table[status_num / 8] & (0x80 >> (status_num % 8))) == 0x00) {
+        if ((FDB_WRITE_GRAN == 1) &&
+            ((status_table[status_num / 8] & (0x80 >> (status_num % 8))) == 0x00)) {
             break;
         }
-        #else /*  (FDB_WRITE_GRAN == 8) ||  (FDB_WRITE_GRAN == 32) ||  (FDB_WRITE_GRAN == 64) */
-        if (status_table[status_num * FDB_WRITE_GRAN / 8] == FDB_BYTE_WRITTEN) {
-            break;
+        else { /* (FDB_WRITE_GRAN == 8) || (FDB_WRITE_GRAN == 32) || (FDB_WRITE_GRAN == 64) */
+            if (status_table[status_num * FDB_WRITE_GRAN / 8] == FDB_BYTE_WRITTEN) {
+                break;
+            }
         }
-        #endif /* FDB_WRITE_GRAN == 1 */
 
         i++;
     }
 
-    return status_num_bak - i;
+    return (status_num_bak - i);
 }
 
 fdb_err_t _fdb_write_status(fdb_db_t db, uint32_t addr, uint8_t status_table[],
@@ -174,18 +178,23 @@ fdb_err_t _fdb_write_status(fdb_db_t db, uint32_t addr, uint8_t status_table[],
 }
 
 size_t _fdb_read_status(fdb_db_t db, uint32_t addr, uint8_t status_table[], size_t total_num) {
+    size_t status;
+
     FDB_ASSERT(status_table);
 
     _fdb_flash_read(db, addr, (uint32_t*)status_table, FDB_STATUS_TABLE_SIZE(total_num));
 
-    return _fdb_get_status(status_table, total_num);
+    status = _fdb_get_status(status_table, total_num);
+
+    return status;
 }
 
 /*
  * find the continue 0xFF flash address to end address
  */
 uint32_t _fdb_continue_ff_addr(fdb_db_t db, uint32_t start, uint32_t end) {
-    uint8_t buf[32], last_data = FDB_BYTE_WRITTEN;
+    uint8_t buf[32];
+    uint8_t last_data = FDB_BYTE_WRITTEN;
     size_t addr = start;
     size_t read_size;
 
@@ -199,9 +208,11 @@ uint32_t _fdb_continue_ff_addr(fdb_db_t db, uint32_t start, uint32_t end) {
 
         _fdb_flash_read(db, start, (uint32_t*)buf, read_size);
         for (size_t i = 0; i < read_size; i++) {
-            if (last_data != FDB_BYTE_ERASED && buf[i] == FDB_BYTE_ERASED) {
+            if ((last_data != FDB_BYTE_ERASED) &&
+                (buf[i] == FDB_BYTE_ERASED)) {
                 addr = start + i;
             }
+
             last_data = buf[i];
         }
     }
