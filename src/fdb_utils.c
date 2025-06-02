@@ -348,7 +348,7 @@ fdb_err_t _fdb_flash_write(fdb_db_t db, uint32_t addr, void const* buf, size_t s
         }
     }
     else if (IS_ENABLED(FDB_USING_FAL_MODE)) {
-        ret = fal_partition_write(db->storage.part, addr, (uint8_t*)buf, size);
+        ret = fal_partition_write(db->storage.part, addr, buf, size);
         if (ret < 0) {
             result = FDB_WRITE_ERR;
         }
