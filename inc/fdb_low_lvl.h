@@ -54,7 +54,7 @@
 #define FDB_FAILED_ADDR                     0xFFFFFFFF
 
 size_t _fdb_set_status(uint8_t status_table[], size_t status_num, size_t status_index);
-size_t _fdb_get_status(uint8_t status_table[], size_t status_num);
+size_t _fdb_get_status(uint8_t const status_table[], size_t status_num);
 uint32_t _fdb_continue_ff_addr(fdb_db_t db, uint32_t start, uint32_t end);
 fdb_err_t _fdb_init_ex(fdb_db_t db, char const* name, char const* part_name, fdb_db_type type, void* user_data);
 void _fdb_init_finish(fdb_db_t db, fdb_err_t result);

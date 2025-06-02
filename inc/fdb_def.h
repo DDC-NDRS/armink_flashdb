@@ -79,7 +79,8 @@ extern "C" {
 #define FDB_INFO(...)                       \
     FDB_LOG_PREFIX();                       \
     FDB_PRINT(__VA_ARGS__)
-/* assert for developer. */
+
+    /* assert for developer. */
 #ifdef FDB_USING_NATIVE_ASSERT
 #define FDB_ASSERT(EXPR)                    assert(EXPR);
 #else
@@ -359,7 +360,7 @@ typedef struct fdb_tsdb* fdb_tsdb_t;
 
 /* blob structure */
 struct fdb_blob {
-    void *buf;                              /**< blob data buffer */
+    void* buf;                              /**< blob data buffer */
     size_t size;                            /**< blob data buffer size */
 
     struct {

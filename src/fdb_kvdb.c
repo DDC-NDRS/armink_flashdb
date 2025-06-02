@@ -1257,7 +1257,7 @@ static fdb_err_t create_kv_blob(fdb_kvdb_t db, kv_sec_info_t sector, char const*
 
     memset(&kv_hdr, FDB_BYTE_ERASED, sizeof(struct kv_hdr_data));
     kv_hdr.magic     = KV_MAGIC_WORD;
-    kv_hdr.name_len  = strlen(key);
+    kv_hdr.name_len  = (uint8_t)strlen(key);
     kv_hdr.value_len = len;
     kv_hdr.len       = KV_HDR_DATA_SIZE + FDB_WG_ALIGN(kv_hdr.name_len) + FDB_WG_ALIGN(kv_hdr.value_len);
 
