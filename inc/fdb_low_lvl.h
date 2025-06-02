@@ -16,7 +16,7 @@
 #include "fdb_def.h"
 
 #if (FDB_WRITE_GRAN == 1)
-#define FDB_STATUS_TABLE_SIZE(status_number)        ((status_number * FDB_WRITE_GRAN + 7)/8)
+#define FDB_STATUS_TABLE_SIZE(status_number)        (((status_number * FDB_WRITE_GRAN) + 7)/8)
 #else
 #define FDB_STATUS_TABLE_SIZE(status_number)        (((status_number - 1) * FDB_WRITE_GRAN + 7)/8)
 #endif
@@ -59,7 +59,7 @@ uint32_t _fdb_continue_ff_addr(fdb_db_t db, uint32_t start, uint32_t end);
 fdb_err_t _fdb_init_ex(fdb_db_t db, char const* name, char const* part_name, fdb_db_type type, void* user_data);
 void _fdb_init_finish(fdb_db_t db, fdb_err_t result);
 void _fdb_deinit(fdb_db_t db);
-char const* _fdb_db_path(fdb_db_t db);
+char const* _fdb_db_path(fdb_db_t const db);
 fdb_err_t _fdb_write_status(fdb_db_t db, uint32_t addr, uint8_t status_table[], size_t status_num, size_t status_index,
                             bool sync);
 size_t _fdb_read_status(fdb_db_t db, uint32_t addr, uint8_t status_table[], size_t total_num);

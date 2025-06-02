@@ -49,7 +49,7 @@ fdb_err_t _fdb_init_ex(fdb_db_t db, char const* name, char const* path, fdb_db_t
     db->user_data = user_data;
 
     if (db->file_mode) {
-        #ifdef FDB_USING_FILE_MODE
+        #if defined(FDB_USING_FILE_MODE)
         memset(db->cur_file_sec, FDB_FAILED_ADDR, FDB_FILE_CACHE_TABLE_SIZE * sizeof(db->cur_file_sec[0]));
         /* must set when using file mode */
         FDB_ASSERT(db->sec_size != 0);
@@ -61,10 +61,11 @@ fdb_err_t _fdb_init_ex(fdb_db_t db, char const* name, char const* path, fdb_db_t
         #endif
         db->storage.dir = path;
         FDB_ASSERT(strlen(path) != 0)
+        #else
+        return FDB_INIT_FAILED;
         #endif
     }
     else if (IS_ENABLED(FDB_USING_FAL_MODE)) {
-        #if defined(FDB_USING_FAL_MODE)
         size_t block_size;
 
         /* FAL (Flash Abstraction Layer) initialization */
@@ -90,7 +91,6 @@ fdb_err_t _fdb_init_ex(fdb_db_t db, char const* name, char const* path, fdb_db_t
         }
 
         db->max_size = db->storage.part->len;
-        #endif /* FDB_USING_FAL_MODE */
     }
     else if (IS_ENABLED(FDB_USING_ZEPHYR_FLASH_MAP)) {
         const struct flash_area* fa = db->storage.fa;
@@ -130,6 +130,7 @@ fdb_err_t _fdb_init_ex(fdb_db_t db, char const* name, char const* path, fdb_db_t
 
 void _fdb_init_finish(fdb_db_t db, fdb_err_t result) {
     static bool log_is_show = false;
+
     if (result == FDB_NO_ERR) {
         db->init_ok = true;
         if (!log_is_show) {
@@ -148,19 +149,19 @@ void _fdb_deinit(fdb_db_t db) {
     FDB_ASSERT(db);
 
     if (db->init_ok) {
-#ifdef FDB_USING_FILE_MODE
+        #ifdef FDB_USING_FILE_MODE
         for (int i = 0; i < FDB_FILE_CACHE_TABLE_SIZE; i++) {
-#ifdef FDB_USING_FILE_POSIX_MODE
+            #ifdef FDB_USING_FILE_POSIX_MODE
             if (db->cur_file[i] > 0) {
                 close(db->cur_file[i]);
             }
-#else
+            #else
             if (db->cur_file[i] != 0) {
                 fclose(db->cur_file[i]);
             }
-#endif /* FDB_USING_FILE_POSIX_MODE */
+            #endif /* FDB_USING_FILE_POSIX_MODE */
         }
-#endif /* FDB_USING_FILE_MODE */
+        #endif /* FDB_USING_FILE_MODE */
     }
 
     db->init_ok = false;
@@ -168,17 +169,19 @@ void _fdb_deinit(fdb_db_t db) {
 
 char const* _fdb_db_path(fdb_db_t db) {
     if (db->file_mode) {
-#ifdef FDB_USING_FILE_MODE
-        return db->storage.dir;
-#else
-        return NULL;
-#endif
+        if (IS_ENABLED(FDB_USING_FILE_MODE)) {
+            return db->storage.dir;
+        }
+        else {
+            return NULL;
+        }
     }
     else {
-#ifdef FDB_USING_FAL_MODE
-        return db->storage.part->name;
-#else
-        return NULL;
-#endif
+        if (IS_ENABLED(FDB_USING_FAL_MODE)) {
+            return db->storage.part->name;
+        }
+        else { // FDB_USING_ZEPHYR_FLASH_MAP
+            return db->storage.fa->fa_dev->name;
+        }
     }
 }

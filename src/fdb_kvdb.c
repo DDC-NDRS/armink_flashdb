@@ -1272,18 +1272,21 @@ static fdb_err_t create_kv_blob(fdb_kvdb_t db, kv_sec_info_t sector, char const*
         if (result == FDB_NO_ERR) {
             result = update_sec_status(db, sector, kv_hdr.len, &is_full);
         }
+
         if (result == FDB_NO_ERR) {
             uint8_t ff = FDB_BYTE_ERASED;
             /* start calculate CRC32 */
             kv_hdr.crc32 = 0;
+
             /* CRC32(header.name_len + header.value_len + name + value), using sizeof(uint32_t) for compatible V1.x */
-            kv_hdr.crc32 = fdb_calc_crc32(kv_hdr.crc32, &kv_hdr.name_len, sizeof(uint32_t));
+            kv_hdr.crc32 = fdb_calc_crc32(kv_hdr.crc32, &kv_hdr.name_len , sizeof(uint32_t));
             kv_hdr.crc32 = fdb_calc_crc32(kv_hdr.crc32, &kv_hdr.value_len, sizeof(uint32_t));
             kv_hdr.crc32 = fdb_calc_crc32(kv_hdr.crc32, key, kv_hdr.name_len);
             align_remain = FDB_WG_ALIGN(kv_hdr.name_len) - kv_hdr.name_len;
             while (align_remain--) {
                 kv_hdr.crc32 = fdb_calc_crc32(kv_hdr.crc32, &ff, 1);
             }
+
             kv_hdr.crc32 = fdb_calc_crc32(kv_hdr.crc32, value, kv_hdr.value_len);
             align_remain = FDB_WG_ALIGN(kv_hdr.value_len) - kv_hdr.value_len;
             while (align_remain--) {

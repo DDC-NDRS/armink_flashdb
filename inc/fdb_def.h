@@ -156,15 +156,14 @@ enum fdb_kv_status {
 };
 typedef enum fdb_kv_status fdb_kv_status_t;
 
+#define FDB_TSL_STATUS_NUM  6
 enum fdb_tsl_status {
     FDB_TSL_UNUSED,
     FDB_TSL_PRE_WRITE,
     FDB_TSL_WRITE,
     FDB_TSL_USER_STATUS1,
     FDB_TSL_DELETED,
-    FDB_TSL_USER_STATUS2,
-
-#define FDB_TSL_STATUS_NUM 6
+    FDB_TSL_USER_STATUS2
 };
 typedef enum fdb_tsl_status fdb_tsl_status_t;
 
@@ -301,7 +300,7 @@ struct fdb_db {
     bool file_mode;                         /**< is file mode, default is false */
     bool not_formatable;                    /**< is can NOT be formated mode, default is false */
 
-    #ifdef FDB_USING_FILE_MODE
+    #if defined(FDB_USING_FILE_MODE)
     uint32_t cur_file_sec[FDB_FILE_CACHE_TABLE_SIZE];   /**< last operate sector address  */
     #if defined(FDB_USING_FILE_POSIX_MODE)
     int cur_file[FDB_FILE_CACHE_TABLE_SIZE];            /**< current file object */
