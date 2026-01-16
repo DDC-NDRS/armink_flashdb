@@ -18,8 +18,7 @@
 
 #define FDB_LOG_TAG "[sample][kvdb][string]"
 
-void kvdb_type_string_sample(fdb_kvdb_t kvdb)
-{
+void kvdb_type_string_sample(fdb_kvdb_t kvdb) {
     FDB_INFO("==================== kvdb_type_string_sample ====================\n");
 
     { /* CREATE new Key-Value */
@@ -31,7 +30,7 @@ void kvdb_type_string_sample(fdb_kvdb_t kvdb)
     }
 
     { /* GET the KV value */
-        char *return_value, temp_data[10] = { 0 };
+        char *return_value, temp_data[10] = {0};
 
         /* Get the "temp" KV value.
          * NOTE: The return value saved in fdb_kv_get's buffer. Please copy away as soon as possible.

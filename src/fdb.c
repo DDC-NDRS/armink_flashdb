@@ -54,11 +54,13 @@ fdb_err_t _fdb_init_ex(fdb_db_t db, char const* name, char const* path, fdb_db_t
         /* must set when using file mode */
         FDB_ASSERT(db->sec_size != 0);
         FDB_ASSERT(db->max_size != 0);
+
         #ifdef FDB_USING_FILE_POSIX_MODE
         memset(db->cur_file, -1, FDB_FILE_CACHE_TABLE_SIZE * sizeof(db->cur_file[0]));
         #else
         memset(db->cur_file, 0, FDB_FILE_CACHE_TABLE_SIZE * sizeof(db->cur_file[0]));
         #endif
+
         db->storage.dir = path;
         FDB_ASSERT(strlen(path) != 0)
         #else

@@ -16,9 +16,9 @@
 #include "fdb_def.h"
 
 #if (FDB_WRITE_GRAN == 1)
-#define FDB_STATUS_TABLE_SIZE(status_number)        (((status_number * FDB_WRITE_GRAN) + 7)/8)
+#define FDB_STATUS_TABLE_SIZE(status_number)        (((status_number * FDB_WRITE_GRAN) + 7) / 8)
 #else
-#define FDB_STATUS_TABLE_SIZE(status_number)        (((status_number - 1) * FDB_WRITE_GRAN + 7)/8)
+#define FDB_STATUS_TABLE_SIZE(status_number)        (((status_number - 1) * FDB_WRITE_GRAN + 7) / 8)
 #endif
 
 /* the data is erased */

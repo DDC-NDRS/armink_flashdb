@@ -366,7 +366,9 @@ static uint32_t get_next_kv_addr(fdb_kvdb_t db, kv_sec_info_t sector, fdb_kv_t p
 static fdb_err_t read_kv(fdb_kvdb_t db, fdb_kv_t kv) {
     struct kv_hdr_data kv_hdr;
     uint8_t buf[32];
-    uint32_t calc_crc32 = 0, crc_data_len, kv_name_addr;
+    uint32_t calc_crc32 = 0;
+    uint32_t crc_data_len;
+    uint32_t kv_name_addr;
     fdb_err_t result = FDB_NO_ERR;
     size_t len;
     size_t size;
@@ -793,7 +795,7 @@ static fdb_err_t write_kv_hdr(fdb_kvdb_t db, uint32_t addr, kv_hdr_data_t kv_hdr
 }
 
 static fdb_err_t format_sector(fdb_kvdb_t db, uint32_t addr, uint32_t combined_value) {
-    fdb_err_t result  = FDB_NO_ERR;
+    fdb_err_t result = FDB_NO_ERR;
     struct sector_hdr_data sec_hdr = {0};
 
     FDB_ASSERT(addr % db_sec_size(db) == 0);
@@ -1171,6 +1173,7 @@ static bool do_gc(kv_sec_info_t sector, void* arg1, void* arg2) {
                 FDB_DEBUG("KV (%.*s) is garbage NOT need move, collect it.\n", kv.name_len, kv.name);
             }
         } while ((kv.addr.start = get_next_kv_addr(db, sector, &kv)) != FAILED_ADDR);
+
         format_sector(db, sector->addr, SECTOR_NOT_COMBINED);
         last_gc_sec_addr = gc->last_gc_sec_addr;
         gc->last_gc_sec_addr = sector->addr;
@@ -1232,8 +1235,8 @@ static fdb_err_t align_write(fdb_kvdb_t db, uint32_t addr, uint32_t const* buf, 
     #endif
 
     memset(align_data, FDB_BYTE_ERASED, align_data_size);
-    if(FDB_WG_ALIGN_DOWN(size) > 0) {
-        result = _fdb_flash_write((fdb_db_t) db, addr, buf, FDB_WG_ALIGN_DOWN(size), false);
+    if (FDB_WG_ALIGN_DOWN(size) > 0) {
+        result = _fdb_flash_write((fdb_db_t)db, addr, buf, FDB_WG_ALIGN_DOWN(size), false);
     }
 
     align_remain = size - FDB_WG_ALIGN_DOWN(size);
@@ -1520,7 +1523,7 @@ static bool print_kv_cb(fdb_kv_t kv, void* arg1, void* arg2) {
             if (kv->value_len < FDB_STR_KV_VALUE_MAX_SIZE) {
                 uint8_t buf[32];
                 size_t  len, size;
-__reload:
+__reload :
                 /* check the value is string */
                 for (len = 0, size = 0; len < kv->value_len; len += size) {
                     if (len + sizeof(buf) < kv->value_len) {
@@ -1874,6 +1877,7 @@ fdb_err_t fdb_kvdb_init(fdb_kvdb_t db, char const* name, char const* path, struc
         db->sector_cache_table[i].empty_kv = FAILED_ADDR;
         db->sector_cache_table[i].addr     = FDB_DATA_UNUSED;
     }
+
     for (i = 0; i < FDB_KV_CACHE_TABLE_SIZE; i++) {
         db->kv_cache_table[i].addr = FDB_DATA_UNUSED;
     }

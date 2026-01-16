@@ -84,7 +84,7 @@ static uint32_t const crc32_table[] = {
 uint32_t fdb_calc_crc32(uint32_t crc, void const* buf, size_t size) {
     uint8_t const* p;
 
-    p = (uint8_t const*)buf;
+    p   = (uint8_t const*)buf;
     crc = (crc ^ ~0U);
 
     while (size--) {
@@ -172,7 +172,7 @@ fdb_err_t _fdb_write_status(fdb_db_t db, uint32_t addr, uint8_t status_table[],
 
     if (FDB_WRITE_GRAN == 1) {
         result = _fdb_flash_write(db, addr + byte_index, &status_table[byte_index], 1, sync);
-    } 
+    }
     else { /* (FDB_WRITE_GRAN == 8) || (FDB_WRITE_GRAN == 32) || (FDB_WRITE_GRAN == 64) */
         /* write the status by write granularity
          * some flash (like stm32 onchip) NOT supported repeated write before erase */
@@ -286,7 +286,7 @@ fdb_err_t _fdb_flash_read(fdb_db_t db, uint32_t addr, void* buf, size_t size) {
     if (db->file_mode) {
         if (IS_ENABLED(FDB_USING_FILE_MODE)) {
             result = _fdb_file_read(db, addr, buf, size);
-        } 
+        }
         else {
             result = FDB_READ_ERR;
         }

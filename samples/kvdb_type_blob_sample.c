@@ -17,8 +17,7 @@
 
 #define FDB_LOG_TAG "[sample][kvdb][blob]"
 
-void kvdb_type_blob_sample(fdb_kvdb_t kvdb)
-{
+void kvdb_type_blob_sample(fdb_kvdb_t kvdb) {
     struct fdb_blob blob;
 
     FDB_INFO("==================== kvdb_type_blob_sample ====================\n");
