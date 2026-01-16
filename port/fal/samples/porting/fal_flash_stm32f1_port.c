@@ -9,9 +9,9 @@
 #include <stm32f1xx.h>
 
 #if defined(STM32F103xE)
-#define PAGE_SIZE     2048
+#define PAGE_SIZE 2048
 #else
-#define PAGE_SIZE     1024
+#define PAGE_SIZE 1024
 #endif
 
 /*
@@ -36,70 +36,63 @@ STM32F4
     STM32F4的flash页尺寸不一样，低地址16KB，高地址32KB或128KB.
 */
 
-
-static int init(void)
-{
+static int init(void) {
     /* do nothing now */
     return 1;
 }
 
-
 static int ef_err_port_cnt = 0;
-int on_ic_read_cnt  = 0;
-int on_ic_write_cnt = 0;
+int        on_ic_read_cnt  = 0;
+int        on_ic_write_cnt = 0;
 
-void feed_dog(void)
-{
-
+void feed_dog(void) {
 }
 
-static int read(long offset, uint8_t *buf, size_t size)
-{
+static int read(long offset, uint8_t* buf, size_t size) {
 
-    size_t i;
+    size_t   i;
     uint32_t addr = stm32_onchip_flash.addr + offset;
 
-    if( addr%4 != 0)
+    if (addr % 4 != 0) {
         ef_err_port_cnt++;
+    }
 
-    for (i = 0; i < size; i++, addr++, buf++)
-    {
-        *buf = *(uint8_t *) addr;
+    for (i = 0; i < size; i++, addr++, buf++) {
+        *buf = *(uint8_t*)addr;
     }
     on_ic_read_cnt++;
     return size;
 }
 
-
-static int write(long offset, const uint8_t *buf, size_t size)
-{
+static int write(long offset, uint8_t const* buf, size_t size) {
     size_t   i;
     uint32_t addr = stm32_onchip_flash.addr + offset;
 
     __ALIGN_BEGIN uint32_t write_data __ALIGN_END;
-    __ALIGN_BEGIN uint32_t read_data  __ALIGN_END;  
+    __ALIGN_BEGIN uint32_t read_data  __ALIGN_END;
 
-    if(addr%4 != 0)
+    if (addr % 4 != 0) {
         ef_err_port_cnt++;
+    }
 
-/*
-    if((int)buf%4 != 0)
-        ef_err_port_cnt++;
-*/
+    /*
+        if((int)buf%4 != 0)
+            ef_err_port_cnt++;
+    */
 
     HAL_FLASH_Unlock();
-    for (i = 0; i < size; i += 4, buf+=4, addr += 4) {
-        memcpy(&write_data, buf, 4); //用以保证HAL_FLASH_Program的第三个参数是内存首地址对齐
+    for (i = 0; i < size; i += 4, buf += 4, addr += 4) {
+        memcpy(&write_data, buf, 4); // 用以保证HAL_FLASH_Program的第三个参数是内存首地址对齐
         HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, addr, write_data);
-        read_data = *(uint32_t *)addr;
+        read_data = *(uint32_t*)addr;
         /* You can add your code under here. */
         if (read_data != write_data) {
-            HAL_FLASH_Lock(); 
+            HAL_FLASH_Lock();
             return -1;
         }
-        else{
-			//FLash操作可能非常耗时，如果有看门狗需要喂狗，以下代码由用户实现
-           feed_dog();
+        else {
+            // FLash操作可能非常耗时，如果有看门狗需要喂狗，以下代码由用户实现
+            feed_dog();
         }
     }
     HAL_FLASH_Lock();
@@ -108,14 +101,12 @@ static int write(long offset, const uint8_t *buf, size_t size)
     return size;
 }
 
-
-static int erase(long offset, size_t size)
-{
+static int erase(long offset, size_t size) {
     uint32_t addr = stm32_onchip_flash.addr + offset;
 
     HAL_StatusTypeDef flash_status;
-    size_t erase_pages, i;
-    uint32_t PAGEError = 0;
+    size_t            erase_pages, i;
+    uint32_t          PAGEError = 0;
 
     erase_pages = size / PAGE_SIZE;
     if (size % PAGE_SIZE != 0) {
@@ -123,27 +114,26 @@ static int erase(long offset, size_t size)
     }
 
     FLASH_EraseInitTypeDef EraseInitStruct;
-    EraseInitStruct.TypeErase   = FLASH_TYPEERASE_PAGES;
-    EraseInitStruct.NbPages     = 1;  //一次擦出一个扇区, 以执行一次喂狗，防止超时
+    EraseInitStruct.TypeErase = FLASH_TYPEERASE_PAGES;
+    EraseInitStruct.NbPages   = 1; // 一次擦出一个扇区, 以执行一次喂狗，防止超时
     HAL_FLASH_Unlock();
-    
+
     for (i = 0; i < erase_pages; i++) {
         EraseInitStruct.PageAddress = addr + (FLASH_PAGE_SIZE * i);
-        flash_status = HAL_FLASHEx_Erase(&EraseInitStruct, &PAGEError);
+        flash_status                = HAL_FLASHEx_Erase(&EraseInitStruct, &PAGEError);
         if (flash_status != HAL_OK) {
-            HAL_FLASH_Lock(); 
+            HAL_FLASH_Lock();
             return -1;
         }
-        else{
-			//FLash操作可能非常耗时，如果有看门狗需要喂狗，以下代码由用户实现
+        else {
+            // FLash操作可能非常耗时，如果有看门狗需要喂狗，以下代码由用户实现
             feed_dog();
         }
     }
-    HAL_FLASH_Lock(); 
+    HAL_FLASH_Lock();
 
     return size;
 }
-
 
 /*
   "stm32_onchip" : Flash 设备的名字。
@@ -151,23 +141,18 @@ static int erase(long offset, size_t size)
   1024*1024：Flash 的总大小（1MB）。
   128*1024：Flash 块/扇区大小（因为 STM32F2 各块大小不均匀，所以擦除粒度为最大块的大小：128K）。
   {init, read, write, erase} ：Flash 的操作函数。 如果没有 init 初始化过程，第一个操作函数位置可以置空。
-  8 : 设置写粒度，单位 bit， 0 表示未生效（默认值为 0 ），该成员是 fal 版本大于 0.4.0 的新增成员。各个 flash 写入粒度不尽相同，可通过该成员进行设置，以下列举几种常见 Flash 写粒度：
-  nor flash:  1 bit
-  stm32f2/f4: 8 bit
-  stm32f1:    32 bit
-  stm32l4:    64 bit
+  8 : 设置写粒度，单位 bit， 0 表示未生效（默认值为 0 ），该成员是 fal 版本大于 0.4.0 的新增成员。各个 flash
+  写入粒度不尽相同，可通过该成员进行设置，以下列举几种常见 Flash 写粒度： nor flash:  1 bit stm32f2/f4: 8 bit stm32f1:
+  32 bit stm32l4:    64 bit
  */
 
-//1.定义 flash 设备
+// 1.定义 flash 设备
 
-const struct fal_flash_dev stm32_onchip_flash =
-{
+const struct fal_flash_dev stm32_onchip_flash = {
     .name       = "stm32_onchip",
     .addr       = 0x08000000,
-    .len        = 256*1024,
-    .blk_size   = 2*1024,
+    .len        = 256 * 1024,
+    .blk_size   = 2 * 1024,
     .ops        = {init, read, write, erase},
     .write_gran = 32
 };
-
-

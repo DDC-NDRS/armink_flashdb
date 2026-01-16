@@ -18,8 +18,7 @@ static uint8_t init_ok = 0;
  *
  * @return >= 0: partitions total number
  */
-int fal_init(void)
-{
+int fal_init(void) {
     extern int fal_flash_init(void);
     extern int fal_partition_init(void);
 
@@ -37,13 +36,11 @@ int fal_init(void)
 
 __exit:
 
-    if ((result > 0) && (!init_ok))
-    {
+    if ((result > 0) && (!init_ok)) {
         init_ok = 1;
         log_i("Flash Abstraction Layer (V%s) initialize success.", FAL_SW_VERSION);
     }
-    else if(result <= 0)
-    {
+    else if (result <= 0) {
         init_ok = 0;
         log_e("Flash Abstraction Layer (V%s) initialize failed.", FAL_SW_VERSION);
     }
@@ -53,10 +50,9 @@ __exit:
 
 /**
  * Check if the FAL is initialized successfully
- * 
+ *
  * @return 0: not init or init failed; 1: init success
  */
-int fal_init_check(void)
-{
+int fal_init_check(void) {
     return init_ok;
 }

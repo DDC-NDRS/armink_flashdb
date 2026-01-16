@@ -24,15 +24,15 @@ LOG_MODULE_REGISTER(fdb_tsdb, CONFIG_LOG_DEFAULT_LEVEL);
 
 #define FDB_LOG_TAG "[tsl]"
 /* rewrite log prefix */
-#undef  FDB_LOG_PREFIX2
-#define FDB_LOG_PREFIX2()                   FDB_PRINT("[%s][%s] ", db_name(db), _fdb_db_path((fdb_db_t)db))
+#undef FDB_LOG_PREFIX2
+#define FDB_LOG_PREFIX2()           FDB_PRINT("[%s][%s] ", db_name(db), _fdb_db_path((fdb_db_t)db))
 
 #if defined(FDB_USING_TSDB)
 
 /* magic word(`T`, `S`, `L`, `0`) */
-#define SECTOR_MAGIC_WORD                   0x304C5354
+#define SECTOR_MAGIC_WORD           0x304C5354
 
-#define TSL_STATUS_TABLE_SIZE               FDB_STATUS_TABLE_SIZE(FDB_TSL_STATUS_NUM)
+#define TSL_STATUS_TABLE_SIZE       FDB_STATUS_TABLE_SIZE(FDB_TSL_STATUS_NUM)
 #define TSL_UINT32_ALIGN_SIZE                    (FDB_WG_ALIGN(sizeof(uint32_t)))
 
 #ifdef FDB_USING_TIMESTAMP_64BIT
@@ -59,26 +59,26 @@ LOG_MODULE_REGISTER(fdb_tsdb, CONFIG_LOG_DEFAULT_LEVEL);
 
 #define LOG_IDX_PADDING_SIZE                     (FDB_WG_ALIGN(LOG_IDX_BASE_SIZE) - LOG_IDX_BASE_SIZE)
 
-#define SECTOR_HDR_DATA_SIZE                (FDB_WG_ALIGN(sizeof(struct sector_hdr_data)))
-#define LOG_IDX_DATA_SIZE                   (FDB_WG_ALIGN(sizeof(struct log_idx_data)))
-#define LOG_IDX_TS_OFFSET                   ((unsigned long)(&((struct log_idx_data *)0)->time))
-#define SECTOR_MAGIC_OFFSET                 ((unsigned long)(&((struct sector_hdr_data *)0)->magic))
-#define SECTOR_START_TIME_OFFSET            ((unsigned long)(&((struct sector_hdr_data *)0)->start_time))
-#define SECTOR_END0_TIME_OFFSET             ((unsigned long)(&((struct sector_hdr_data *)0)->end_info[0].time))
-#define SECTOR_END0_IDX_OFFSET              ((unsigned long)(&((struct sector_hdr_data *)0)->end_info[0].index))
-#define SECTOR_END0_STATUS_OFFSET           ((unsigned long)(&((struct sector_hdr_data *)0)->end_info[0].status))
-#define SECTOR_END1_TIME_OFFSET             ((unsigned long)(&((struct sector_hdr_data *)0)->end_info[1].time))
-#define SECTOR_END1_IDX_OFFSET              ((unsigned long)(&((struct sector_hdr_data *)0)->end_info[1].index))
-#define SECTOR_END1_STATUS_OFFSET           ((unsigned long)(&((struct sector_hdr_data *)0)->end_info[1].status))
+#define SECTOR_HDR_DATA_SIZE        (FDB_WG_ALIGN(sizeof(struct sector_hdr_data)))
+#define LOG_IDX_DATA_SIZE           (FDB_WG_ALIGN(sizeof(struct log_idx_data)))
+#define LOG_IDX_TS_OFFSET           ((unsigned long)(&((struct log_idx_data*)0)->time))
+#define SECTOR_MAGIC_OFFSET         ((unsigned long)(&((struct sector_hdr_data*)0)->magic))
+#define SECTOR_START_TIME_OFFSET    ((unsigned long)(&((struct sector_hdr_data*)0)->start_time))
+#define SECTOR_END0_TIME_OFFSET     ((unsigned long)(&((struct sector_hdr_data*)0)->end_info[0].time))
+#define SECTOR_END0_IDX_OFFSET      ((unsigned long)(&((struct sector_hdr_data*)0)->end_info[0].index))
+#define SECTOR_END0_STATUS_OFFSET   ((unsigned long)(&((struct sector_hdr_data*)0)->end_info[0].status))
+#define SECTOR_END1_TIME_OFFSET     ((unsigned long)(&((struct sector_hdr_data*)0)->end_info[1].time))
+#define SECTOR_END1_IDX_OFFSET      ((unsigned long)(&((struct sector_hdr_data*)0)->end_info[1].index))
+#define SECTOR_END1_STATUS_OFFSET   ((unsigned long)(&((struct sector_hdr_data*)0)->end_info[1].status))
 
 /* the next address is get failed */
-#define FAILED_ADDR                         0xFFFFFFFF
+#define FAILED_ADDR         0xFFFFFFFF
 
-#define db_name(db)                         (((fdb_db_t)db)->name)
-#define db_init_ok(db)                      (((fdb_db_t)db)->init_ok)
-#define db_sec_size(db)                     (((fdb_db_t)db)->sec_size)
-#define db_max_size(db)                     (((fdb_db_t)db)->max_size)
-#define db_oldest_addr(db)                  (((fdb_db_t)db)->oldest_addr)
+#define db_name(db)         (((fdb_db_t)db)->name)
+#define db_init_ok(db)      (((fdb_db_t)db)->init_ok)
+#define db_sec_size(db)     (((fdb_db_t)db)->sec_size)
+#define db_max_size(db)     (((fdb_db_t)db)->max_size)
+#define db_oldest_addr(db)  (((fdb_db_t)db)->oldest_addr)
 
 #define db_lock(db)                         \
     do {                                    \
@@ -134,10 +134,11 @@ typedef struct sector_hdr_data* sector_hdr_data_t;
 struct log_idx_data {
     uint8_t status_table[TSL_STATUS_TABLE_SIZE];    /**< node status, @see fdb_tsl_status_t */
     fdb_time_t time;                                /**< node timestamp */
-#ifndef FDB_TSDB_FIXED_BLOB_SIZE
-    uint32_t log_len;                               /**< node total length (header + name + value), must align by FDB_WRITE_GRAN */
-    uint32_t log_addr;                              /**< node address */
-#endif
+
+    #ifndef FDB_TSDB_FIXED_BLOB_SIZE
+    uint32_t log_len;                       /**< node total length (header + name + value), must align by FDB_WRITE_GRAN */
+    uint32_t log_addr;                      /**< node address */
+    #endif
 
     // Autofill to the FDB WRITE GRAN alignment
 #if LOG_IDX_PADDING_SIZE > 0
@@ -170,19 +171,21 @@ static fdb_err_t read_tsl(fdb_tsdb_t db, fdb_tsl_t tsl) {
         tsl->time     = 0;
     }
     else {
-#ifdef FDB_TSDB_FIXED_BLOB_SIZE
+        #ifdef FDB_TSDB_FIXED_BLOB_SIZE
         uint32_t tsl_index_in_sector;
         uint32_t sector_addr;
+
         tsl->log_len = FDB_TSDB_FIXED_BLOB_SIZE;
-        sector_addr = FDB_ALIGN_DOWN(tsl->addr.index, db_sec_size(db));
+        sector_addr  = FDB_ALIGN_DOWN(tsl->addr.index, db_sec_size(db));
         tsl_index_in_sector = (tsl->addr.index - sector_addr - SECTOR_HDR_DATA_SIZE) / LOG_IDX_DATA_SIZE;
-        tsl->addr.log = sector_addr + db_sec_size(db) - (tsl_index_in_sector + 1) * FDB_WG_ALIGN(FDB_TSDB_FIXED_BLOB_SIZE);
+        tsl->addr.log =
+            sector_addr + db_sec_size(db) - (tsl_index_in_sector + 1) * FDB_WG_ALIGN(FDB_TSDB_FIXED_BLOB_SIZE);
         tsl->time = idx.time;
-#else
+        #else
         tsl->log_len  = idx.log_len;
         tsl->addr.log = idx.log_addr;
         tsl->time     = idx.time;
-#endif
+        #endif
     }
 
     return FDB_NO_ERR;
@@ -357,6 +360,7 @@ static void sector_iterator(fdb_tsdb_t db, tsdb_sec_info_t sector, fdb_sector_st
             if (traversal) {
                 read_sector_info(db, sec_addr, sector, true);
             }
+
             /* iterator is interrupted when callback return true */
             if (callback && callback(sector, arg1, arg2)) {
                 return;
@@ -372,13 +376,13 @@ static fdb_err_t write_tsl(fdb_tsdb_t db, fdb_blob_t blob, fdb_time_t time) {
     uint32_t idx_addr = db->cur_sec.empty_idx;
     uint32_t log_addr = db->cur_sec.empty_data - FDB_WG_ALIGN(blob->size);
 
-#ifndef FDB_TSDB_FIXED_BLOB_SIZE
+    #ifndef FDB_TSDB_FIXED_BLOB_SIZE
     // variable-size blobs must store address and size in flash
     idx.log_addr = log_addr;
     idx.log_len  = blob->size;
-#endif
-    idx.time     = time;
+    #endif
 
+    idx.time = time;
 
     /* Write the status will by write granularity */
     _FDB_WRITE_STATUS(db, idx_addr, idx.status_table, FDB_TSL_STATUS_NUM, FDB_TSL_PRE_WRITE, false);
@@ -466,7 +470,7 @@ static fdb_err_t update_sec_status(fdb_tsdb_t db, tsdb_sec_info_t sector, fdb_bl
 
     if (sector->status == FDB_SECTOR_STORE_EMPTY) {
         /* Change the sector to using */
-        sector->status = FDB_SECTOR_STORE_USING;
+        sector->status     = FDB_SECTOR_STORE_USING;
         sector->start_time = cur_time;
         _FDB_WRITE_STATUS(db, sector->addr, status, FDB_SECTOR_STORE_STATUS_NUM, FDB_SECTOR_STORE_USING, true);
         /* save the start timestamp */
@@ -482,19 +486,19 @@ static fdb_err_t tsl_append(fdb_tsdb_t db, fdb_blob_t blob, fdb_time_t const* ti
     fdb_err_t result = FDB_NO_ERR;
     fdb_time_t cur_time = (timestamp == NULL) ? db->get_time() : *timestamp;
 
-#ifdef FDB_TSDB_FIXED_BLOB_SIZE
+    #ifdef FDB_TSDB_FIXED_BLOB_SIZE
     if (blob->size != FDB_TSDB_FIXED_BLOB_SIZE) {
         FDB_INFO("Error: blob size (%zu) must equal FDB_TSDB_FIXED_BLOB_SIZE (%d)\n", blob->size, FDB_TSDB_FIXED_BLOB_SIZE);
         return FDB_WRITE_ERR;
     }
-#else
+    #else
     /* check the append length, MUST less than the db->max_len */
     if (blob->size > db->max_len) {
         FDB_INFO("Warning: append length (%" PRIdMAX ") is more than the db->max_len (%" PRIdMAX "). This tsl will be dropped.\n",
                  (intmax_t)blob->size, (intmax_t)(db->max_len));
         return FDB_WRITE_ERR;
     }
-#endif
+    #endif
 
     /* check the current timestamp, MUST more than the last save timestamp */
     if (cur_time <= db->last_time) {
@@ -1044,7 +1048,8 @@ void fdb_tsdb_control(fdb_tsdb_t db, int cmd, void* arg) {
  *
  * @return result
  */
-fdb_err_t fdb_tsdb_init(fdb_tsdb_t db, char const* name, char const* path, fdb_get_time get_time, size_t max_len, void* user_data) {
+fdb_err_t fdb_tsdb_init(fdb_tsdb_t db, char const* name, char const* path, fdb_get_time get_time, size_t max_len,
+                        void* user_data) {
     fdb_err_t result = FDB_NO_ERR;
     struct tsdb_sec_info sector;
     struct check_sec_hdr_cb_args check_sec_arg = {db, false, 0, 0};

@@ -17,39 +17,39 @@
 #include <assert.h>
 #endif
 
-#define FAL_SW_VERSION                 "0.5.99"
+#define FAL_SW_VERSION "0.5.99"
 
 #ifdef __RTTHREAD__ /* for RT-Thread platform */
 #include <rtthread.h>
-#define FAL_PRINTF      rt_kprintf
-#define FAL_MALLOC      rt_malloc
-#define FAL_CALLOC      rt_calloc
-#define FAL_REALLOC     rt_realloc
-#define FAL_FREE        rt_free
+#define FAL_PRINTF  rt_kprintf
+#define FAL_MALLOC  rt_malloc
+#define FAL_CALLOC  rt_calloc
+#define FAL_REALLOC rt_realloc
+#define FAL_FREE    rt_free
 #endif
 
 #ifndef FAL_MALLOC
-#define FAL_MALLOC                     malloc
+#define FAL_MALLOC malloc
 #endif
 
 #ifndef FAL_CALLOC
-#define FAL_CALLOC                     calloc
+#define FAL_CALLOC calloc
 #endif
 
 #ifndef FAL_REALLOC
-#define FAL_REALLOC                    realloc
+#define FAL_REALLOC realloc
 #endif
 
 #ifndef FAL_FREE
-#define FAL_FREE                       free
+#define FAL_FREE free
 #endif
 
 #ifndef FAL_PRINTF
-#define FAL_PRINTF                     printf
+#define FAL_PRINTF printf
 #endif
 
 #ifndef FAL_DEBUG
-#define FAL_DEBUG                      0
+#define FAL_DEBUG 0
 #endif
 
 #if FAL_DEBUG
@@ -57,20 +57,23 @@
 #ifdef assert
 #undef assert
 #endif
-#define assert(EXPR)                                                           \
-if (!(EXPR))                                                                   \
-{                                                                              \
-    FAL_PRINTF("(%s) has assert failed at %s.\n", #EXPR, __func__ );        \
-    while (1);                                                                 \
-}
+#define assert(EXPR)                                                                                                   \
+    if (!(EXPR)) {                                                                                                     \
+        FAL_PRINTF("(%s) has assert failed at %s.\n", #EXPR, __func__);                                                \
+        while (1)                                                                                                      \
+            ;                                                                                                          \
+    }
 #endif
 
 /* debug level log */
-#ifdef  log_d
-#undef  log_d
+#ifdef log_d
+#undef log_d
 #endif
 #include <inttypes.h>
-#define log_d(...)                     FAL_PRINTF("[D/FAL] (%s:%" PRIdLEAST16 ") ", __func__, __LINE__);           FAL_PRINTF(__VA_ARGS__);FAL_PRINTF("\n")
+#define log_d(...)                                                                                                     \
+    FAL_PRINTF("[D/FAL] (%s:%" PRIdLEAST16 ") ", __func__, __LINE__);                                                  \
+    FAL_PRINTF(__VA_ARGS__);                                                                                           \
+    FAL_PRINTF("\n")
 
 #else
 
@@ -78,63 +81,66 @@ if (!(EXPR))                                                                   \
 #ifdef assert
 #undef assert
 #endif
-#define assert(EXPR)                   ((void)0);
+#define assert(EXPR) ((void)0);
 #endif
 
 /* debug level log */
-#ifdef  log_d
-#undef  log_d
+#ifdef log_d
+#undef log_d
 #endif
 #define log_d(...)
 #endif /* FAL_DEBUG */
 
 /* error level log */
-#ifdef  log_e
-#undef  log_e
+#ifdef log_e
+#undef log_e
 #endif
-#define log_e(...)                     FAL_PRINTF("\033[31;22m[E/FAL] (%s:%d) ", __func__, __LINE__);FAL_PRINTF(__VA_ARGS__);FAL_PRINTF("\033[0m\n")
+#define log_e(...)                                                                                                     \
+    FAL_PRINTF("\033[31;22m[E/FAL] (%s:%d) ", __func__, __LINE__);                                                     \
+    FAL_PRINTF(__VA_ARGS__);                                                                                           \
+    FAL_PRINTF("\033[0m\n")
 
 /* info level log */
-#ifdef  log_i
-#undef  log_i
+#ifdef log_i
+#undef log_i
 #endif
-#define log_i(...)                     FAL_PRINTF("\033[32;22m[I/FAL] ");                                FAL_PRINTF(__VA_ARGS__);FAL_PRINTF("\033[0m\n")
+#define log_i(...)                                                                                                     \
+    FAL_PRINTF("\033[32;22m[I/FAL] ");                                                                                 \
+    FAL_PRINTF(__VA_ARGS__);                                                                                           \
+    FAL_PRINTF("\033[0m\n")
 
 /* FAL flash and partition device name max length */
 #ifndef FAL_DEV_NAME_MAX
 #define FAL_DEV_NAME_MAX 24
 #endif
 
-struct fal_flash_dev
-{
+struct fal_flash_dev {
     char name[FAL_DEV_NAME_MAX];
 
     /* flash device start address and len  */
     uint32_t addr;
-    size_t len;
+    size_t   len;
     /* the block size in the flash for erase minimum granularity */
     size_t blk_size;
 
-    struct
-    {
+    struct {
         int (*init)(void);
-        int (*read)(long offset, uint8_t *buf, size_t size);
-        int (*write)(long offset, const uint8_t *buf, size_t size);
+        int (*read)(long offset, uint8_t* buf, size_t size);
+        int (*write)(long offset, uint8_t const* buf, size_t size);
         int (*erase)(long offset, size_t size);
     } ops;
 
-    /* write minimum granularity, unit: bit. 
+    /* write minimum granularity, unit: bit.
        1(nor flash)/ 8(stm32f2/f4)/ 32(stm32f1)/ 64(stm32l4)
        0 will not take effect. */
     size_t write_gran;
 };
-typedef struct fal_flash_dev *fal_flash_dev_t;
+typedef struct fal_flash_dev* fal_flash_dev_t;
 
 /**
  * FAL partition
  */
-struct fal_partition
-{
+struct fal_partition {
     uint32_t magic_word;
 
     /* partition name */
@@ -143,11 +149,11 @@ struct fal_partition
     char flash_name[FAL_DEV_NAME_MAX];
 
     /* partition offset address on flash device */
-    long offset;
+    long   offset;
     size_t len;
 
     uint32_t reserved;
 };
-typedef struct fal_partition *fal_partition_t;
+typedef struct fal_partition* fal_partition_t;
 
 #endif /* _FAL_DEF_H_ */

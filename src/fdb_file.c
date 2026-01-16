@@ -169,7 +169,7 @@ fdb_err_t _fdb_file_erase(fdb_db_t db, uint32_t addr, size_t size) {
     int fd = open_db_file(db, addr, true);
 
     if (fd > 0) {
-#define BUF_SIZE 32
+        #define BUF_SIZE 32
         uint8_t buf[BUF_SIZE];
         size_t  i;
         lseek(fd, 0, SEEK_SET);
@@ -307,7 +307,7 @@ fdb_err_t _fdb_file_erase(fdb_db_t db, uint32_t addr, size_t size) {
     FILE* fp = open_db_file(db, addr, true);
 
     if (fp != NULL) {
-#define BUF_SIZE 32
+        #define BUF_SIZE 32
         uint8_t buf[BUF_SIZE];
         size_t i;
         fseek(fp, 0, SEEK_SET);
