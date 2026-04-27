@@ -30,7 +30,8 @@ LOG_MODULE_REGISTER(fdb_kvdb, CONFIG_LOG_DEFAULT_LEVEL);
 #error "Please configure flash write granularity (in fdb_cfg.h)"
 #endif
 
-#if FDB_WRITE_GRAN != 1 && FDB_WRITE_GRAN != 8 && FDB_WRITE_GRAN != 32 && FDB_WRITE_GRAN != 64 && FDB_WRITE_GRAN != 128 && FDB_WRITE_GRAN != 256
+#if (FDB_WRITE_GRAN != 1) && (FDB_WRITE_GRAN != 8) && (FDB_WRITE_GRAN != 32) && (FDB_WRITE_GRAN != 64) && \
+    (FDB_WRITE_GRAN != 128) && (FDB_WRITE_GRAN != 256)
 #error "the write gran can be only setting as 1, 8, 32, 64, 128 and 256"
 #endif
 
@@ -118,8 +119,8 @@ struct sector_hdr_data {
 
     #if (FDB_WRITE_GRAN == 64) || (FDB_WRITE_GRAN == 128)
     uint8_t padding[4];                     /**< align padding for 64bit and 128bit write granularity */
-#elif (FDB_WRITE_GRAN == 256)
-    uint8_t padding[20];                         /**< align padding for 256bit write granularity */
+    #elif (FDB_WRITE_GRAN == 256)
+    uint8_t padding[20];                    /**< align padding for 256bit write granularity */
     #endif
 };
 typedef struct sector_hdr_data* sector_hdr_data_t;
@@ -134,10 +135,10 @@ struct kv_hdr_data {
 
     #if (FDB_WRITE_GRAN == 64)
     uint8_t padding[4];                     /**< align padding for 64bit write granularity */
-#elif (FDB_WRITE_GRAN == 128)
+    #elif (FDB_WRITE_GRAN == 128)
     uint8_t padding[12];                    /**< align padding for 128bit write granularity */
-#elif (FDB_WRITE_GRAN == 256)
-    uint8_t padding[15];                          /**< align padding for 256bit write granularity */
+    #elif (FDB_WRITE_GRAN == 256)
+    uint8_t padding[15];                    /**< align padding for 256bit write granularity */
     #endif
 };
 typedef struct kv_hdr_data* kv_hdr_data_t;
@@ -892,8 +893,10 @@ static fdb_err_t update_sec_status(fdb_kvdb_t db, kv_sec_info_t sector, size_t n
     return result;
 }
 
-static void sector_iterator(fdb_kvdb_t db, kv_sec_info_t sector, fdb_sector_store_status_t status, void* arg1, void* arg2,
-                            bool (*callback)(kv_sec_info_t sector, void* arg1, void* arg2), bool traversal_kv) {
+static void sector_iterator(fdb_kvdb_t db, kv_sec_info_t sector, fdb_sector_store_status_t status,
+                            void* arg1, void* arg2,
+                            bool (*callback)(kv_sec_info_t sector, void* arg1, void* arg2),
+                            bool  traversal_kv) {
     uint32_t sec_addr, traversed_len = 0;
 
     /* search all sectors */
@@ -1057,6 +1060,7 @@ static fdb_err_t move_kv(fdb_kvdb_t db, fdb_kv_t kv) {
         if (db->in_recovery_check && kv->status == FDB_KV_PRE_DELETE) {
             struct fdb_kv kv_bak;
             char name[FDB_KV_NAME_MAX + 1] = {0};
+
             strncpy(name, kv->name, kv->name_len);
             /* check the KV in flash is already create success */
             if (find_kv_no_cache(db, name, &kv_bak)) {
@@ -1223,7 +1227,6 @@ static void gc_collect(fdb_kvdb_t db) {
     gc_collect_by_free_size(db, db_max_size(db));
 }
 
-
 static fdb_err_t create_kv_blob(fdb_kvdb_t db, kv_sec_info_t sector, char const* key, void const* value, size_t len) {
     fdb_err_t result = FDB_NO_ERR;
     struct kv_hdr_data kv_hdr;
@@ -1275,9 +1278,12 @@ static fdb_err_t create_kv_blob(fdb_kvdb_t db, kv_sec_info_t sector, char const*
             /* write KV header data */
             result = write_kv_hdr(db, kv_addr, &kv_hdr);
         }
-        /* write key name */
+
+        /* Write key name */
         if (result == FDB_NO_ERR) {
-            result = _fdb_flash_write_align((fdb_db_t)db, kv_addr + KV_HDR_DATA_SIZE, (uint32_t *) key, kv_hdr.name_len);
+            result = _fdb_flash_write_align((fdb_db_t)db,
+                                            kv_addr + KV_HDR_DATA_SIZE,
+                                            (uint32_t*)key, kv_hdr.name_len);
 
             #ifdef FDB_KV_USING_CACHE
             if (!is_full) {
@@ -1291,8 +1297,9 @@ static fdb_err_t create_kv_blob(fdb_kvdb_t db, kv_sec_info_t sector, char const*
 
         /* write value */
         if (result == FDB_NO_ERR) {
-            result = _fdb_flash_write_align((fdb_db_t)db, kv_addr + KV_HDR_DATA_SIZE + FDB_WG_ALIGN(kv_hdr.name_len), value,
-                                 kv_hdr.value_len);
+            result = _fdb_flash_write_align((fdb_db_t)db,
+                                            kv_addr + KV_HDR_DATA_SIZE + FDB_WG_ALIGN(kv_hdr.name_len),
+                                            value, kv_hdr.value_len);
         }
 
         /* change the KV status to KV_WRITE */
